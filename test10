@@ -110,6 +110,16 @@ To stop all running containers
 
 To delete all stopped containers 
 	docker rm $(docker ps --filter "status=exited" -q)
+				(or)
+	docker container prune
+To delete one or more container 	
+		docker rm <conainter_id1> <conainter_id2> .... 
+
+		To delete a running container 
+			1. Forcefully - docker rm -f <conainter_id>
+			2. Grace fully - docker rm $(docker stop <conainter_id>) 
+						          (or)
+					 docker stop <conainter_id> | xargs -I{} docker rm "{}"	
 
 To create a container from a image 
 	docker run -it -d --name <container_name> <image_repo>:<tag>
@@ -119,3 +129,150 @@ To create a container from a image
 		-d: detached mode (creates container in background)
 		--name: The name for the container to be created
 		1. Always provide image name at the end of the command 
+
+To login / get inside a container 
+	docker attach <container_ID>  
+		(safe exit <ctrl>+qp)
+			(OR)
+	docker exec -it <container_ID> <shell_to_run>
+
+	ex: docker exec -it my_ubuntu /bin/bash 
+	    docker exec -it my_alpine /bin/sh	
+
+
+How to customise Docker image / How to write a Dockerfile
+
+	Dockerfile
+		Dockerfile is used to create custom images by using any stock image or other image as base image.
+		In Dockerfile we can write some set of instructions to update any image.
+
+		To create image from Dockerfile
+			docker build -t my_ubuntu .
+
+	FROM ubuntu
+		FROM is the first instruction in the every Dockerfile
+		FROM is used to specify the base image on top which all the other 
+			instruction will run in the same Dockerfile.
+
+		FROM <image_name>:<tag>
+
+	RUN 
+		Normal shell command or the commands supported by the base image are executed using this instruction.
+		we can have n number of RUN in a single Dockerfile.
+
+		Normal command format 
+			RUN <command>
+
+		exec format 
+			RUN ['<command>','<param1>','<param2>']	
+			RUN ['apt','update']	
+			RUN ['apt','install','-y','git']	
+			RUN ['ls','-lrt']	 
+
+	ENV 
+		- This instruction is used to set the environment variable inside the container.
+
+		ENV <variable_name> <value>
+		ENV <variable_name>=<value>
+
+		multiple variables
+			ENV <variable_name>=<value> <variable_name>=<value> <variable_name>=<value> ....
+
+		To create environment variables at run time 
+			- using -e or --env option at the runtime we can create env variables 
+			- For multiple variables use multiple -e 
+
+		ex:	docker run .... -e <variable_name>=<value> -e <variable_name>=<value> ....	
+
+		The best way to load multiple env variable is using env file 
+			using --env-file <file_path> at the runtime (with docker run command) we can 
+			load the env file containing n number variables. 
+
+	ARG
+		Using ARG we can pass parameters to Dockerfile as user inputs 
+
+		ARG <var_name>=<default_value>
+
+		To pass the value at build time 
+			docker build --build-arg <var_name>=<value> ....
+
+COPY and ADD 
+	Both copy and add instruction is used to copy files and directories from 
+	host machine build location to the image and the container created from it.
+
+	ADD supports extra source formats 
+	  - If the source is a compressed file then ADD will automatically uncompress it 
+	    in the destination.
+	  - If the source is a downloadable link then ADD will automatically download the 
+	    file in the destination.
+
+	COPY <source_path_from_build_context> <destination_inside_image>	  
+	ADD <source_path_from_build_context> <destination_inside_image>	  
+
+
+CMD and ENTRYPOINT
+		shell format 
+			CMD "ls -lrt"
+			ENTRYPOINT "ls -lrt"
+
+		EXEC Format
+			CMD ["ls","-l","-rt"]
+			ENTRYPOINT ["ls","-lrt"]
+
+		- Both CMD and ENTRYPOINT are used to define the execution command of the container which will be created 
+		  from this image.
+		- If we use multiple CMD or ENTRYPOINT in the same Dockerfile only the latest one will be considered 
+		  and all the other CMD or ENTRYPOINT will be ignored.	
+		- If we use both CMD and ENTRYPOINT in the same Dockerfile, ENTRYPOINT will get the 
+		  higest priority and the command of CMD will become as argumetns to ENTRYPOINT	
+
+		 Difference  
+		  -	CMD command can be overridden at the runtime.	
+		  - ENTRYPOINT can't be overridden at the runtime but the runtime command
+		    will become parameters to ENTRYPOINT command.
+
+		Note: Q. Can we override ENTRYPOINT 
+				 Yes, after docker 1.6 version docker has given option to over
+					  Entrypoint command at the runtime using --entrypoint 
+
+	EXPOSE 
+		EXPOSE <port_number>
+		- Used to expose a port to the docker network 
+		- This is make the  port accessible by all the other containers in the 
+		  same docker network.	
+
+	WORKDIR
+		This is used to set the working directory for all the instructions that follows it
+		such as RUN, CMD, ENTRYPOINT, COPY, ADD
+
+		WORKDIR <path>
+
+
+IQ: What is the difference b/w CMD and ENTRYPOINT
+    What is the difference b/w COPY and ADD 	
+    What is the difference b/w ENV and ARG
+
+    Try to learn source command
+
+Dangling Images 
+	Dangling images are created while executing layers in image build process that have no relationship 
+	to any tagged images. They no longer serve a purpose and it consume disk space.
+
+	To list dangling images 
+	    docker images -f dangling=true
+
+	To remove only dangling images 
+	    docker rmi $(docker images -f dangling=true -q)
+
+   	To delete all unused images including dangling image
+	    docker image prune
+
+	    docker system prune 
+		Remove all unused containers, networks, images (both dangling and unreferenced),
+		and optionally, volumes. 
+		This will remove:
+  		  - all stopped containers
+  		  - all networks not used by at least one container
+  		  - all dangling images
+  		  - all dangling build cache
+
